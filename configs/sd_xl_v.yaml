@@ -10,7 +10,7 @@ model:
         num_idx: 1000
 
         weighting_config:
-          target: sgm.modules.diffusionmodules.denoiser_weighting.EpsWeighting
+          target: sgm.modules.diffusionmodules.denoiser_weighting.VWeighting
         scaling_config:
           target: sgm.modules.diffusionmodules.denoiser_scaling.VScaling
         discretization_config:
