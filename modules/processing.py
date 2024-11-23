@@ -187,6 +187,7 @@ class StableDiffusionProcessing:
 
     cached_uc = [None, None]
     cached_c = [None, None]
+    hijack_generation_params_state_list = []
 
     comments: dict = None
     sampler: sd_samplers_common.Sampler | None = field(default=None, init=False)
@@ -480,6 +481,10 @@ class StableDiffusionProcessing:
 
         for cache in caches:
             if cache[0] is not None and cached_params == cache[0]:
+                if len(cache) == 3:
+                    generation_params_state, cached_params_2 = cache[2]
+                    if cached_params == cached_params_2:
+                        self.hijack_generation_params_state_list.extend(generation_params_state)
                 return cache[1]
 
         cache = caches[0]
@@ -487,8 +492,24 @@ class StableDiffusionProcessing:
         with devices.autocast():
             cache[1] = function(shared.sd_model, required_prompts, steps, hires_steps, shared.opts.use_old_scheduling)
 
+        generation_params_state = model_hijack.capture_generation_params_state()
+        self.hijack_generation_params_state_list.extend(generation_params_state)
+        if len(cache) == 2:
+            cache.append((generation_params_state, cached_params))
+        else:
+            cache[2] = (generation_params_state, cached_params)
+
         cache[0] = cached_params
         return cache[1]
+
+    def apply_hijack_generation_params(self):
+        self.extra_generation_params.update(model_hijack.extra_generation_params)
+        for func in self.hijack_generation_params_state_list:
+            try:
+                func(self.extra_generation_params)
+            except Exception:
+                errors.report(f"Failed to apply hijack generation params state", exc_info=True)
+        self.hijack_generation_params_state_list.clear()
 
     def setup_conds(self):
         prompts = prompt_parser.SdConditioning(self.prompts, width=self.width, height=self.height)
@@ -501,6 +522,8 @@ class StableDiffusionProcessing:
 
         self.uc = self.get_conds_with_caching(prompt_parser.get_learned_conditioning, negative_prompts, total_steps, [self.cached_uc], self.extra_network_data)
         self.c = self.get_conds_with_caching(prompt_parser.get_multicond_learned_conditioning, prompts, total_steps, [self.cached_c], self.extra_network_data)
+
+        self.apply_hijack_generation_params()
 
     def get_conds(self):
         return self.c, self.uc
@@ -964,8 +987,6 @@ def process_images_inner(p: StableDiffusionProcessing) -> Processed:
                 p.scripts.process_batch(p, batch_number=n, prompts=p.prompts, seeds=p.seeds, subseeds=p.subseeds)
 
             p.setup_conds()
-
-            p.extra_generation_params.update(model_hijack.extra_generation_params)
 
             # params.txt should be saved after scripts.process_batch, since the
             # infotext could be modified by that callback
@@ -1512,6 +1533,8 @@ class StableDiffusionProcessingTxt2Img(StableDiffusionProcessing):
 
         self.hr_uc = self.get_conds_with_caching(prompt_parser.get_learned_conditioning, hr_negative_prompts, self.firstpass_steps, [self.cached_hr_uc, self.cached_uc], self.hr_extra_network_data, total_steps)
         self.hr_c = self.get_conds_with_caching(prompt_parser.get_multicond_learned_conditioning, hr_prompts, self.firstpass_steps, [self.cached_hr_c, self.cached_c], self.hr_extra_network_data, total_steps)
+
+        self.apply_hijack_generation_params()
 
     def setup_conds(self):
         if self.is_hr_pass:

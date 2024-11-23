@@ -288,3 +288,18 @@ def compare_sha256(file_path: str, hash_prefix: str) -> bool:
         for chunk in iter(lambda: f.read(blksize), b""):
             hash_sha256.update(chunk)
     return hash_sha256.hexdigest().startswith(hash_prefix.strip().lower())
+
+
+class GenerationParamsState:
+    """A custom class used in StableDiffusionModelHijack for assigning extra_generation_params
+    generation_params assigned using this class will work properly with StableDiffusionProcessing.get_conds_with_caching()
+        if assigned directly the generation_params will not be populated if conda cache is used
+
+    Generation_params of this class will be captured (see StableDiffusionModelHijack.capture_generation_params_state) and stored with conda cache, and will be extracted in StableDiffusionProcessing.apply_hijack_generation_params()
+
+    To use this class, create a subclass with a __call__ method that takes extra_generation_params: dict as input
+
+    Example usage: sd_hijack_clip.EmbeddingHashes, sd_hijack_clip.EmphasisMode
+    """
+    def __call__(self, extra_generation_params: dict):
+        raise NotImplementedError

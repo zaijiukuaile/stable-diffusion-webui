@@ -6,6 +6,7 @@ from modules import devices, sd_hijack_optimizations, shared, script_callbacks, 
 from modules.hypernetworks import hypernetwork
 from modules.shared import cmd_opts
 from modules import sd_hijack_clip, sd_hijack_open_clip, sd_hijack_unet, sd_hijack_xlmr, xlmr, xlmr_m18
+from modules.util import GenerationParamsState
 
 import ldm.modules.attention
 import ldm.modules.diffusionmodules.model
@@ -320,6 +321,13 @@ class StableDiffusionModelHijack:
     def clear_comments(self):
         self.comments = []
         self.extra_generation_params = {}
+
+    def capture_generation_params_state(self):
+        state = []
+        for key in list(self.extra_generation_params):
+            if isinstance(self.extra_generation_params[key], GenerationParamsState):
+                state.append(self.extra_generation_params.pop(key))
+        return state
 
     def get_prompt_lengths(self, text):
         if self.clip is None:
