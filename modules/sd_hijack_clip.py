@@ -3,7 +3,7 @@ from collections import namedtuple
 
 import torch
 
-from modules import prompt_parser, devices, sd_hijack, sd_emphasis
+from modules import prompt_parser, devices, sd_hijack, sd_emphasis, util
 from modules.shared import opts
 from modules.util import GenerationParamsState
 
@@ -37,7 +37,7 @@ class EmbeddingHashes(GenerationParamsState):
         unique_hashes = dict.fromkeys(self.hashes)
         if existing_ti_hashes := extra_generation_params.get('TI hashes'):
             unique_hashes.update(dict.fromkeys(existing_ti_hashes.split(', ')))
-        extra_generation_params['TI hashes'] = ', '.join(unique_hashes)
+        extra_generation_params['TI hashes'] = ', '.join(sorted(unique_hashes, key=util.natural_sort_key))
 
 
 class EmphasisMode(GenerationParamsState):
