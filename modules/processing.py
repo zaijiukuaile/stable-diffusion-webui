@@ -508,7 +508,7 @@ class StableDiffusionProcessing:
             try:
                 func(self.extra_generation_params)
             except Exception:
-                errors.report(f"Failed to apply hijack generation params state", exc_info=True)
+                errors.report('Failed to apply hijack generation params state', exc_info=True)
         self.hijack_generation_params_state_list.clear()
 
     def setup_conds(self):
